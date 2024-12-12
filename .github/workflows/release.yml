@@ -3,6 +3,8 @@ name: RELEASE
 on:
   push:
     branches: [ main ]
+    paths:
+      - aiagents4pharma/**
 
 jobs:
   on-success:

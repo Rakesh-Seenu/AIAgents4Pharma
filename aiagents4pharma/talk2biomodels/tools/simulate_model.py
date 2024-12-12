@@ -4,7 +4,8 @@
 Tool for simulating a model.
 """
 
-from typing import Type, Union, List, Optional
+from typing import Type, Union, List, Optional, Tuple
+import basico
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from langchain_core.tools import BaseTool
@@ -36,14 +37,31 @@ class SpeciesData:
     species_name: List[str] = None
     species_concentration: List[Union[int, float]] = None
 
+@dataclass
+class TimeSpeciesNameConcentration:
+    """
+    Dataclass for storing the time, species name, and concentration data.
+    """
+    time: Union[int, float] = None
+    species_name: str = None
+    species_concentration: Union[int, float] = None
+
+@dataclass
+class RecurringData:
+    """
+    Dataclass for storing the species and time data 
+    on recurring basis.
+    """
+    data: List[TimeSpeciesNameConcentration] = None
+
 class SimulateModelInput(BaseModel):
     """
     Input schema for the SimulateModel tool.
     """
-    st_session_key: str = Field(description="Streamlit session key", default=None)
     model_data: ModelData = Field(description="model data", default=None)
     time_data: TimeData = Field(description="time data", default=None)
     species_data: SpeciesData = Field(description="species data", default=None)
+    recurring_data: RecurringData = Field(description="recurring data", default=None)
 
 # Note: It's important that every field has type hints. BaseTool is a
 # Pydantic class and not having type hints can lead to unexpected behavior.
@@ -52,14 +70,15 @@ class SimulateModelTool(BaseTool):
     Tool for simulating a model.
     """
     name: str = "simulate_model"
-    description: str = "A tool for simulating a model."
+    description: str = "A tool to simulate a model."
     args_schema: Type[BaseModel] = SimulateModelInput
+    st_session_key: str = None
 
     def _run(self,
                 model_data: ModelData = None,
                 time_data: TimeData = None,
                 species_data: SpeciesData = None,
-                st_session_key: str = None):
+                recurring_data: RecurringData = None):
         """
         Run the tool.
 
@@ -67,11 +86,12 @@ class SimulateModelTool(BaseTool):
             model_data (Optional[ModelData]): The model data.
             time_data (Optional[TimeData]): The time data.
             species_data (Optional[SpeciesData]): The species data.
-            st_session_key (str): The Streamlit session key
+            recurring_data (Optional[RecurringData]): The recurring data.
 
         Returns:
             str: The result of the simulation.
         """
+        st_session_key = self.st_session_key
         # Retrieve the model ID, duration, and interval
         modelid = model_data.modelid if model_data is not None else None
         duration = time_data.duration if time_data is not None else 100.0
@@ -118,6 +138,16 @@ class SimulateModelTool(BaseTool):
             modelid = model_object.model_id
             # Save the model object in the Streamlit session state
             st.session_state[st_session_key] = model_object
+        # Add recurring events (if any) to the model
+        if recurring_data is not None:
+            for row in recurring_data.data:
+                tp, sn, sc = row.time, row.species_name, row.species_concentration
+                basico.add_event(f'{sn}_{tp}',
+                                 f'Time > {tp}',
+                                 [[sn, str(sc)]],
+                                 model=model_object.copasi_model)
+                # print (f'Added event {sn}_{tp} at time {tp} \
+                #        for species {sn} with concentration {sc}')
         # Simulate the model
         df = model_object.simulate(parameters=dic_species_data,
                                     duration=duration,
@@ -137,33 +167,11 @@ class SimulateModelTool(BaseTool):
                         width=800
         )
         # Display the plot in Streamlit
-        st.plotly_chart(fig, use_container_width = False)
+        # st.plotly_chart(fig, use_container_width = False)
         if modelid is None:
             modelid = "internal"
         content = f"Simulation results for the model {modelid}."
         return content
-
-    def call_run(self,
-                model_data: ModelData = None,
-                time_data: TimeData = None,
-                species_data: SpeciesData = None,
-                st_session_key: str = None) -> str:
-        """
-        Run the tool.
-
-        Args:
-            model_data (Optional[ModelData]): The model data.
-            time_data (Optional[TimeData]): The time data.
-            species_data (Optional[SpeciesData]): The species data.
-            st_session_key (str): The Streamlit session key
-
-        Returns:
-            str: The result of the simulation.
-        """
-        return self._run(model_data=model_data,
-                        time_data=time_data,
-                        species_data=species_data,
-                        st_session_key=st_session_key)
 
     def get_metadata(self):
         """

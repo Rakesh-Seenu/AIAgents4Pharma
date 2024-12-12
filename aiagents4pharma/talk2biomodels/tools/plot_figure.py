@@ -31,7 +31,6 @@ class PlotImageInput(BaseModel):
     """
     question: str = Field(description="Description of the plot")
     sys_bio_model: ModelData = Field(description="model data", default=None)
-    st_session_key: str = Field(description="Streamlit session key", default=None)
 
 # Note: It's important that every field has type hints. BaseTool is a
 # Pydantic class and not having type hints can lead to unexpected behavior.
@@ -42,21 +41,22 @@ class PlotImageTool(BaseTool):
     name: str = "plot_figure"
     description: str = "A tool to plot or visualize the simulation results."
     args_schema: Type[BaseModel] = PlotImageInput
+    st_session_key: str = None
 
     def _run(self,
              question: str,
-             sys_bio_model: ModelData = ModelData(),
-             st_session_key: str = None) -> str:
+             sys_bio_model: ModelData = ModelData()) -> str:
         """
         Run the tool.
 
         Args:
             question (str): The question to ask about the model description.
-            st_session_key (str): The Streamlit session key.
+            sys_bio_model (ModelData): The model data.
 
         Returns:
             str: The answer to the question
         """
+        st_session_key = self.st_session_key
         # Check if sys_bio_model is provided
         if sys_bio_model.modelid or sys_bio_model.sbml_file_path or sys_bio_model.model_object:
             if sys_bio_model.modelid:

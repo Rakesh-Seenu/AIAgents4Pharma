@@ -39,15 +39,12 @@ class ModelData:
                 data['model_object'] = None
         return data
 
-
 class ModelDescriptionInput(BaseModel):
     """
     Input schema for the ModelDescription tool.
     """
     question: str = Field(description="question about the model description")
     sys_bio_model: ModelData = Field(description="model data", default=None)
-    st_session_key: str = Field(description="Streamlit session key", default=None)
-
 
 # Note: It's important that every field has type hints. BaseTool is a
 # Pydantic class and not having type hints can lead to unexpected behavior.
@@ -57,26 +54,26 @@ class ModelDescriptionTool(BaseTool):
     """
     name: str = "model_description"
     description: str = '''A tool to ask about the description of the model.'''
-
     args_schema: Type[BaseModel] = ModelDescriptionInput
     return_direct: bool = True
+    st_session_key: str = None
 
     def _run(self,
              question: str,
              sys_bio_model: ModelData = ModelData(),
-             st_session_key: str = None,
              run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         """
         Run the tool.
 
         Args:
             question (str): The question to ask about the model description.
-            st_session_key (str): The Streamlit session key.
             run_manager (Optional[CallbackManagerForToolRun]): The CallbackManagerForToolRun object.
 
         Returns:
             str: The answer to the question.
         """
+        st_session_key = self.st_session_key
+        print (st_session_key, 'st_session_key')
         # Check if sys_bio_model is provided in the input schema
         if sys_bio_model.modelid or sys_bio_model.sbml_file_path \
             or sys_bio_model.model_object not in [None, "", {}]:
@@ -125,28 +122,6 @@ class ModelDescriptionTool(BaseTool):
         chain = prompt_template | llm | parser
         return chain.invoke({"description": description,
                              "question": question})
-
-    def call_run(self,
-            question: str,
-            sys_bio_model: ModelData = ModelData(),
-            st_session_key: str = None,
-            run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
-        """
-        Run the tool.
-
-        Args:
-            question (str): The question to ask about the model description.
-            sys_bio_model (ModelData): The model data.
-            st_session_key (str): The Streamlit session key.
-            run_manager (Optional[CallbackManagerForToolRun]): The CallbackManagerForToolRun object.
-        
-        Returns:
-            str: The answer to the question
-        """
-        return self._run(question=question,
-                         sys_bio_model=sys_bio_model,
-                         st_session_key=st_session_key,
-                         run_manager=run_manager)
 
     def get_metadata(self):
         """

@@ -29,8 +29,6 @@ class AskQuestionInput(BaseModel):
     Input schema for the AskQuestion tool.
     """
     question: str = Field(description="question about the simulation results")
-    sys_bio_model: ModelData = Field(description="model data", default=None)
-    st_session_key: str = Field(description="Streamlit session key", default=None)
 
 # Note: It's important that every field has type hints. BaseTool is a
 # Pydantic class and not having type hints can lead to unexpected behavior.
@@ -42,23 +40,24 @@ class AskQuestionTool(BaseTool):
     description: str = "A tool to ask question about the simulation results."
     args_schema: Type[BaseModel] = AskQuestionInput
     return_direct: bool = True
+    st_session_key: str = None
+    sys_bio_model: ModelData = ModelData()
 
     def _run(self,
              question: str,
-             sys_bio_model: ModelData = ModelData(),
-             st_session_key: str = None,
              run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         """
         Run the tool.
 
         Args:
             question (str): The question to ask about the simulation results.
-            st_session_key (str): The Streamlit session key.
             run_manager (Optional[CallbackManagerForToolRun]): The CallbackManagerForToolRun object.
 
         Returns:
             str: The answer to the question.
         """
+        st_session_key = self.st_session_key
+        sys_bio_model = self.sys_bio_model
         # Check if sys_bio_model is provided in the input
         if sys_bio_model.modelid or sys_bio_model.sbml_file_path or sys_bio_model.model_object:
             if sys_bio_model.modelid is not None:
@@ -100,28 +99,6 @@ class AskQuestionTool(BaseTool):
                                                   prefix=prompt_content)
         llm_result = df_agent.invoke(question)
         return llm_result["output"]
-
-    def call_run(self,
-            question: str,
-            sys_bio_model: ModelData = ModelData(),
-            st_session_key: str = None,
-            run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
-        """
-        Run the tool.
-
-        Args:
-            question (str): The question to ask about the simulation results.
-            sys_bio_model (ModelData): The model data.
-            st_session_key (str): The Streamlit session key.
-            run_manager (Optional[CallbackManagerForToolRun]): The CallbackManagerForToolRun object.
-
-        Returns:
-            str: The answer to the question.
-        """
-        return self._run(question=question,
-                         sys_bio_model=sys_bio_model,
-                         st_session_key=st_session_key,
-                         run_manager=run_manager)
 
     def get_metadata(self):
         """
